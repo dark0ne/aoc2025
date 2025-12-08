@@ -46,7 +46,7 @@ fn step1(input: &str, limit: usize) -> usize {
 
     let mut distances = Vec::new();
     for (a, p1) in points.iter().enumerate() {
-        for (b, p2) in points.iter().enumerate().skip(a + 1) {
+        for p2 in points.iter().skip(a + 1) {
             let dist = distance_sqr(p1, p2);
             distances.push((p1.id, p2.id, dist));
         }
@@ -110,7 +110,7 @@ fn step1(input: &str, limit: usize) -> usize {
 
     let mut keys = all_circuits
         .iter()
-        .filter(|(k, c)| !c.list.is_empty())
+        .filter(|(_, c)| !c.list.is_empty())
         .map(|(k, _)| *k)
         .collect::<Vec<usize>>();
     keys.sort();
@@ -135,9 +135,6 @@ impl Circuit {
     }
     fn add_point(&mut self, p: usize) {
         self.points.insert(p);
-    }
-    fn remove_point(&mut self, p: usize) {
-        self.points.remove(&p);
     }
 }
 
@@ -178,7 +175,7 @@ fn step2(input: &str) -> usize {
 
     let mut distances = Vec::new();
     for (a, p1) in points.iter().enumerate() {
-        for (b, p2) in points.iter().enumerate().skip(a + 1) {
+        for p2 in points.iter().skip(a + 1) {
             let dist = distance_sqr(p1, p2);
             distances.push((p1.id, p2.id, dist));
         }
