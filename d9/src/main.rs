@@ -67,10 +67,12 @@ fn crosses_rect(r1: P, r2: P, a1: P, a2: P) -> bool {
     if a1.y == a2.y {
         // horizontal line
         let y = a1.y;
+        // segment line lies on rect edge or is outside
         if rect_ys.0 >= y || y >= rect_ys.1 {
             return false;
         }
         let seg_xs = min_max_pair(a1.x, a2.x);
+        // end of segement touches the rect edge, other end is outside
         if rect_xs.1 == seg_xs.0 || seg_xs.1 == rect_xs.0 {
             return false;
         }
@@ -80,10 +82,12 @@ fn crosses_rect(r1: P, r2: P, a1: P, a2: P) -> bool {
         // a1.x == a2.x
         // vertical line
         let x = a1.x;
+        // segment line lies on rect edge or is outside
         if rect_xs.0 >= x || x >= rect_xs.1 {
             return false;
         }
         let seg_ys = min_max_pair(a1.y, a2.y);
+        // end of segement touches the rect edge, other end is outside
         if rect_ys.1 == seg_ys.0 || seg_ys.1 == rect_ys.0 {
             return false;
         }
