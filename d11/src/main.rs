@@ -1,4 +1,3 @@
-use array2d::Array2D;
 use std::{
     collections::{HashMap, VecDeque},
     fs,
@@ -31,16 +30,15 @@ fn step1(input: &str) -> usize {
         map
     };
 
-    let dim = name_to_index.len();
-    let mut indexes = Array2D::filled_with(false, dim, dim);
-
+    let mut indexes = Vec::new();
+    indexes.push(Vec::new()); // out
     for line in lines.iter() {
-        let (left, rest) = line.split_once(": ").expect("Invalid input");
-        for right in rest.split_whitespace() {
-            let left_idx = *name_to_index.get(left).unwrap();
-            let right_idx = *name_to_index.get(right).unwrap();
-            *indexes.get_mut(left_idx, right_idx).unwrap() = true;
-        }
+        let (_left, rest) = line.split_once(": ").expect("Invalid input");
+        let connections: Vec<usize> = rest
+            .split_whitespace()
+            .map(|name| *name_to_index.get(name).unwrap())
+            .collect();
+        indexes.push(connections);
     }
 
     let visits = count("you", "out", &indexes, &name_to_index);
@@ -66,16 +64,15 @@ fn step2(input: &str) -> usize {
         map
     };
 
-    let dim = name_to_index.len();
-    let mut indexes = Array2D::filled_with(false, dim, dim);
-
+    let mut indexes = Vec::new();
+    indexes.push(Vec::new()); // out
     for line in lines.iter() {
-        let (left, rest) = line.split_once(": ").expect("Invalid input");
-        for right in rest.split_whitespace() {
-            let left_idx = *name_to_index.get(left).unwrap();
-            let right_idx = *name_to_index.get(right).unwrap();
-            *indexes.get_mut(left_idx, right_idx).unwrap() = true;
-        }
+        let (_left, rest) = line.split_once(": ").expect("Invalid input");
+        let connections: Vec<usize> = rest
+            .split_whitespace()
+            .map(|name| *name_to_index.get(name).unwrap())
+            .collect();
+        indexes.push(connections);
     }
 
     let svr_fft = count("svr", "fft", &indexes, &name_to_index);
@@ -91,7 +88,7 @@ fn step2(input: &str) -> usize {
 fn count(
     from: &str,
     to: &str,
-    indexes: &Array2D<bool>,
+    indexes: &Vec<Vec<usize>>,
     name_to_index: &HashMap<&str, usize>,
 ) -> usize {
     let start_idx = *name_to_index.get(from).unwrap();
@@ -140,12 +137,7 @@ fn count(
         let mut new_subnodes = false;
         let mut first = true;
 
-        for (right, _) in indexes
-            .row_iter(left)
-            .unwrap()
-            .enumerate()
-            .filter(|(_, connected)| **connected)
-        {
+        for &right in indexes[left].iter() {
             let v = *visits_cache.get(right).unwrap();
             if let Some(v) = v {
                 if v != 0 {
