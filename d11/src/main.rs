@@ -141,8 +141,8 @@ fn count(
             let v = *visits_cache.get(right).unwrap();
             if let Some(v) = v {
                 if v != 0 {
-                    for (n, _) in cur_path.iter() {
-                        *visits_cache[*n].get_or_insert_default() += v;
+                    for &n in cur_path.iter().map(|(n, _)| n) {
+                        *visits_cache[n].get_or_insert_default() += v;
                     }
                 }
             } else {
@@ -155,9 +155,9 @@ fn count(
         }
         if !new_subnodes {
             let _ = visits_cache[left].get_or_insert_default();
-            let mut extra_pop = true;
-            while extra_pop {
-                extra_pop = cur_path.pop().unwrap().1;
+            let mut remove_parent = true;
+            while remove_parent {
+                remove_parent = cur_path.pop().unwrap().1;
             }
         }
     }
