@@ -101,6 +101,7 @@ fn count(
 
     let mut visits_cache = Vec::new();
     visits_cache.resize(dim, None);
+    visits_cache[end_idx] = Some(1);
 
     let mut q = VecDeque::new();
     q.push_back((start_idx, false));
@@ -139,25 +140,24 @@ fn count(
         let mut new_subnodes = false;
         let mut first = true;
 
-        for (right, connected) in indexes.row_iter(left).unwrap().enumerate() {
-            if *connected {
-                let v = *visits_cache.get(right).unwrap();
-                if right == end_idx {
+        for (right, _) in indexes
+            .row_iter(left)
+            .unwrap()
+            .enumerate()
+            .filter(|(_, connected)| **connected)
+        {
+            let v = *visits_cache.get(right).unwrap();
+            if let Some(v) = v {
+                if v != 0 {
                     for (n, _) in cur_path.iter() {
-                        *visits_cache[*n].get_or_insert_default() += 1;
+                        *visits_cache[*n].get_or_insert_default() += v;
                     }
-                } else if let Some(v) = v {
-                    if v != 0 {
-                        for (n, _) in cur_path.iter() {
-                            *visits_cache[*n].get_or_insert_default() += v;
-                        }
-                    }
-                } else {
-                    q.push_front((right, first));
-                    new_subnodes = true;
-                    if first {
-                        first = false;
-                    }
+                }
+            } else {
+                q.push_front((right, first));
+                new_subnodes = true;
+                if first {
+                    first = false;
                 }
             }
         }
