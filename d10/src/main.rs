@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use std::{cmp::Ordering, collections::VecDeque, env::var, fs, io::Write, iter, usize};
+use std::{fs, usize};
 fn main() {
     let input = fs::read_to_string("in1.txt").unwrap();
     let result = step1(&input);
@@ -45,25 +45,6 @@ fn to_joltage(s: &str) -> Vec<usize> {
     };
     s.split(',').map(|s| s.parse::<usize>().unwrap()).collect()
 }
-fn apply_joltage(j: &mut Vec<usize>, mut button: usize, times: usize, limits: &Vec<usize>) -> bool {
-    let mut bit = 0;
-
-    while button != 0 {
-        let mask = 1 << bit;
-        if button & mask != 0 {
-            j[bit] += times;
-            if j[bit] > limits[bit] {
-                return true;
-            }
-            button ^= mask;
-        }
-        bit += 1;
-    }
-    false
-}
-fn compare_joltage(a: &Vec<usize>, b: &Vec<usize>) -> bool {
-    a.iter().zip(b.iter()).all(|(a, b)| *a == *b)
-}
 
 fn to_lights(s: &str) -> (usize, usize) {
     let Some(s) = s.strip_prefix('[') else {
@@ -88,7 +69,7 @@ fn step1(input: &str) -> usize {
 
     'next: for line in lines.iter() {
         let blocks: Vec<&str> = line.split_whitespace().collect();
-        let (lights_end, len) = to_lights(blocks[0]);
+        let (lights_end, _) = to_lights(blocks[0]);
 
         let switches = blocks
             .iter()
@@ -135,12 +116,11 @@ fn step2(input: &str) -> usize {
         let joltage_end = to_joltage(blocks.last().unwrap());
 
         let rows = joltage_end.len();
-        let cols = switches.len();
         let mut matrix: Vec<Vec<f64>> = Vec::new();
         matrix.resize(rows, Vec::new());
 
         for (row, &eq) in joltage_end.iter().enumerate() {
-            for (i, sw) in switches.iter().enumerate() {
+            for sw in switches.iter() {
                 let value = if let Some(_) = sw.iter().find(|e| **e == row) {
                     1.0f64
                 } else {
@@ -206,7 +186,7 @@ fn gauss(m: &mut Vec<Vec<f64>>, dependent: &mut Vec<usize>, independent: &mut Ve
             .iter()
             .enumerate()
             .skip(cur_row)
-            .find(|(r, row)| row[cur_col].abs() > EPSILON)
+            .find(|(_, row)| row[cur_col].abs() > EPSILON)
             .map(|(r, _)| r);
         let Some(swap_row) = swap_row else {
             independent.push(cur_col);
