@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use std::{cmp::Ordering, collections::VecDeque, fs, io::Write, iter, usize};
+use std::{cmp::Ordering, collections::VecDeque, env::var, fs, io::Write, iter, usize};
 fn main() {
     let input = fs::read_to_string("in1.txt").unwrap();
     let result = step1(&input);
@@ -114,6 +114,8 @@ fn step1(input: &str) -> usize {
     pushes_total
 }
 
+const EPSILON: f64 = 1e-10f64;
+
 fn step2(input: &str) -> usize {
     let lines: Vec<&str> = input.split('\n').filter(|l| !l.is_empty()).collect();
 
@@ -132,48 +134,175 @@ fn step2(input: &str) -> usize {
             .collect::<Vec<_>>();
         let joltage_end = to_joltage(blocks.last().unwrap());
 
-        for (j, eq) in joltage_end.iter().enumerate() {
+        let rows = joltage_end.len();
+        let cols = switches.len();
+        let mut matrix: Vec<Vec<f64>> = Vec::new();
+        matrix.resize(rows, Vec::new());
+
+        for (row, &eq) in joltage_end.iter().enumerate() {
             for (i, sw) in switches.iter().enumerate() {
-                if let Some(_) = sw.iter().find(|e| **e == j) {
-                    print!("1 ")
+                let value = if let Some(_) = sw.iter().find(|e| **e == row) {
+                    1.0f64
                 } else {
-                    print!("0 ")
-                }
+                    0f64
+                };
+                matrix[row].push(value);
             }
-            println!("= {}", *eq);
+            matrix[row].push(eq as f64);
         }
 
-        if switches.len() > joltage_end.len() {
-            pushes_total += 1;
+        let mut dependent = Vec::new();
+        let mut independent = Vec::new();
+        gauss(&mut matrix, &mut dependent, &mut independent);
+
+        let mut variables = Vec::new();
+        variables.resize(independent.len(), 0);
+
+        let mut limits = Vec::new();
+        for &v in independent.iter() {
+            let limit = switches[v].iter().map(|&j| joltage_end[j]).max().unwrap();
+            limits.push(limit);
         }
+
+        let mut min = usize::MAX;
+        if let Some(count) = test_variables(&matrix, &variables, &dependent, &independent) {
+            min = min.min(count);
+        }
+
+        loop {
+            if !change_variables(&mut variables, &limits) {
+                break;
+            }
+            if variables.iter().sum::<usize>() >= min {
+                continue;
+            }
+            if let Some(count) = test_variables(&matrix, &variables, &dependent, &independent) {
+                min = min.min(count);
+            }
+        }
+        println!("{min}");
+
+        pushes_total += min;
     }
 
     pushes_total
 }
 
-fn pr(pushes: &Vec<usize>) {
-    print!("[ ");
-    for e in pushes {
-        print!("{e}, ")
+const PRINT: bool = false;
+
+fn gauss(m: &mut Vec<Vec<f64>>, dependent: &mut Vec<usize>, independent: &mut Vec<usize>) {
+    let rows = m.len();
+    let cols = m[0].len() - 1;
+    let mut cur_row = 0;
+    let mut cur_col = 0;
+    while cur_row < rows && cur_col < cols {
+        if PRINT {
+            println!("row={cur_row}, col={cur_col}");
+            print_matrix(m);
+            println!();
+        }
+
+        let swap_row = m
+            .iter()
+            .enumerate()
+            .skip(cur_row)
+            .find(|(r, row)| row[cur_col].abs() > EPSILON)
+            .map(|(r, _)| r);
+        let Some(swap_row) = swap_row else {
+            independent.push(cur_col);
+            cur_col += 1;
+            continue;
+        };
+
+        m.swap(cur_row, swap_row);
+
+        // normalize
+        let factor = m[cur_row][cur_col];
+        for v in m[cur_row].iter_mut() {
+            *v /= factor;
+        }
+
+        let calc = m[cur_row].clone();
+        for (r, row) in m.iter_mut().enumerate() {
+            if r != cur_row {
+                let factor = row[cur_col];
+                if factor.abs() > EPSILON {
+                    for (&a, b) in calc.iter().skip(cur_col).zip(row.iter_mut().skip(cur_col)) {
+                        *b -= factor * a;
+                    }
+                }
+            }
+        }
+        dependent.push(cur_col);
+
+        cur_row += 1;
+        cur_col += 1;
     }
-    println!("]")
+
+    println!("row={cur_row}, col={cur_col}");
+    print_matrix(m);
+    println!();
+
+    independent.extend(cur_col..cols);
+    println!("indep {:?}", independent);
 }
 
-fn change_pushes(v: &mut Vec<usize>) {
-    let last_index = v.len() - 1;
-    let last_elem = v[last_index];
-    v[last_index] = 0;
+fn test_variables(
+    m: &Vec<Vec<f64>>,
+    variables: &Vec<usize>,
+    dependent: &Vec<usize>,
+    independent: &Vec<usize>,
+) -> Option<usize> {
+    let mut count = variables.iter().sum();
 
-    let f = v[..last_index].iter().enumerate().rfind(|(_, e)| **e != 0);
-    match f {
-        None => {
-            v[0] = last_elem + 1;
+    let cols = m[0].len() - 1;
+    for r in 0..dependent.len() {
+        let v = independent
+            .iter()
+            .enumerate()
+            .fold(m[r][cols], |res, (value_idx, &var_idx)| {
+                res - m[r][var_idx] * variables[value_idx] as f64
+            });
+
+        // Negative number is invalid
+        if v < -EPSILON {
+            return None;
         }
-        Some((idx, _)) => {
-            v[idx] -= 1;
-            v[idx + 1] = last_elem + 1;
+
+        // Non whole number is invalid
+        let rounded_v = v.round();
+        if (v - rounded_v).abs() > EPSILON {
+            return None;
         }
+
+        count += rounded_v as usize;
     }
+
+    Some(count)
+}
+
+fn print_matrix(m: &Vec<Vec<f64>>) {
+    for row in m.iter() {
+        for &v in row.iter().take(row.len() - 1) {
+            let v = if v.abs() < EPSILON { 0f64 } else { v };
+            print!("{:>4} ", v);
+        }
+        println!("= {:>5}", row.last().unwrap());
+    }
+}
+
+fn change_variables(v: &mut Vec<usize>, limits: &Vec<usize>) -> bool {
+    let mut overflow = true;
+    let mut index = 0;
+    while overflow && index < v.len() {
+        v[index] += 1;
+        overflow = v[index] > limits[index];
+        if overflow {
+            v[index] = 0;
+        }
+        index += 1;
+    }
+    !overflow
 }
 
 #[test]
